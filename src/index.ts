@@ -1,8 +1,10 @@
 import * as StellarSdk from "@stellar/stellar-sdk";
 import { NetworkPassphrase, PaymentArgs, PaymentDTO, TransactionData } from "./types";
-import { createPlatformApiClient, isMainnet } from "./utils";
+import { createPlatformApiClient, isMainnet, isSubmitTransactionErrorResponse } from "./utils";
 import { config } from "./config";
-import { AxiosInstance } from "axios";
+import { AxiosInstance, isAxiosError } from "axios";
+import { PiPaymentError } from "./PiPaymentError";
+import { PiPaymentApiCancelError, PiPaymentApiCompleteError, PiPaymentApiCreateError } from "./types/errors";
 
 export default class PiNetwork {
   private api: AxiosInstance;
@@ -18,12 +20,28 @@ export default class PiNetwork {
   }
 
   public createPayment = async (payment: PaymentArgs): Promise<string> => {
-    this.validatePaymentData(payment);
+    try {
+      this.validatePaymentData(payment);
 
-    const response = await this.api.post<PaymentDTO>(`/payments`, { payment });
-    this.currentPayment = response.data;
+      const response = await this.api.post<PaymentDTO>(`/payments`, { payment });
+      this.currentPayment = response.data;
 
-    return response.data.identifier;
+      return response.data.identifier;
+    } catch (err) {
+      if (err instanceof PiPaymentError) {
+        throw err;
+      }
+
+      if (isAxiosError<PiPaymentApiCreateError>(err) && err.response?.data.error) {
+        throw new PiPaymentError(err.response?.data.error, {
+          messageOverride: err.response.data.error_message,
+          data:
+            err.response.data.error === "ongoing_payment_found" ? { payment: err.response.data.payment } : undefined,
+        });
+      }
+
+      throw new PiPaymentError("unknown_error");
+    }
   };
 
   public submitPayment = async (paymentId: string): Promise<string> => {
@@ -33,12 +51,7 @@ export default class PiNetwork {
         const txid = this.currentPayment.transaction?.txid;
 
         if (txid) {
-          const error = new Error("This payment already has a linked txid");
-          // @ts-expect-error ...
-          error.paymentId = paymentId;
-          // @ts-expect-error ...
-          error.txid = txid;
-          throw error;
+          throw new PiPaymentError("payment_already_has_linked_txid", { data: { paymentId, txid } });
         }
       }
 
@@ -50,7 +63,7 @@ export default class PiNetwork {
       } = this.currentPayment;
 
       const piHorizon = this.getHorizonClient(this.currentPayment.network);
-      const transactionData = {
+      const transactionData: TransactionData = {
         amount,
         paymentIdentifier,
         fromAddress,
@@ -58,8 +71,32 @@ export default class PiNetwork {
       };
 
       const transaction = await this.buildA2UTransaction(piHorizon, transactionData, this.currentPayment.network);
-      const txid = await this.submitTransaction(piHorizon, transaction);
+      const response = await piHorizon.submitTransaction(transaction);
+
+      if (!response.successful) {
+        if (isSubmitTransactionErrorResponse(response)) {
+          const resultCode =
+            response.extras?.result_codes?.operations?.[0] ||
+            response.extras?.result_codes?.transaction ||
+            "unknown_error";
+
+          throw new PiPaymentError(resultCode);
+        }
+      }
+
+      // @ts-expect-error StellarSdk.Horizon.HorizonApi.TransactionResponse.id is misstyped
+      const txid = response.id as string | undefined;
+      if (!txid) {
+        throw new PiPaymentError("unknown_error");
+      }
+
       return txid;
+    } catch (err) {
+      if (err instanceof PiPaymentError) {
+        throw err;
+      }
+
+      throw new PiPaymentError("unknown_error");
     } finally {
       this.currentPayment = null;
     }
@@ -69,55 +106,93 @@ export default class PiNetwork {
     try {
       const response = await this.api.post<PaymentDTO>(`/payments/${paymentId}/complete`, { txid });
       return response.data;
+    } catch (err) {
+      if (isAxiosError<PiPaymentApiCompleteError>(err) && err.response?.data) {
+        throw new PiPaymentError(err.response.data.error, {
+          messageOverride: err.response.data.error_message,
+          data:
+            err.response.data.error === "verification_failed"
+              ? { verificationError: err.response.data.verification_error }
+              : undefined,
+        });
+      }
+      throw new PiPaymentError("unknown_error");
     } finally {
       this.currentPayment = null;
     }
   };
 
   public getPayment = async (paymentId: string): Promise<PaymentDTO> => {
-    const response = await this.api.get<PaymentDTO>(`/payments/${paymentId}`);
-    return response.data;
+    try {
+      const response = await this.api.get<PaymentDTO>(`/payments/${paymentId}`);
+      return response.data;
+    } catch (err) {
+      if (isAxiosError<{ error: "payment_not_found"; error_message: string }>(err) && err.response?.data.error) {
+        throw new PiPaymentError(err.response.data.error, {
+          messageOverride: err.response.data.error_message,
+        });
+      }
+      throw new PiPaymentError("unknown_error");
+    }
   };
 
   public cancelPayment = async (paymentId: string): Promise<PaymentDTO> => {
     try {
       const response = await this.api.post<PaymentDTO>(`/payments/${paymentId}/cancel`);
       return response.data;
+    } catch (err) {
+      if (isAxiosError<PiPaymentApiCancelError>(err) && err.response?.data) {
+        throw new PiPaymentError(err.response.data.error, {
+          messageOverride: err.response.data.error_message,
+          data:
+            err.response.data.error === "forbidden" ||
+            err.response.data.error === "already_completed" ||
+            err.response.data.error === "cancelled_payment"
+              ? { payment: err.response.data.payment }
+              : undefined,
+        });
+      }
+      throw new PiPaymentError("unknown_error");
     } finally {
       this.currentPayment = null;
     }
   };
 
   public getIncompleteServerPayments = async (): Promise<Array<PaymentDTO>> => {
-    const response = await this.api.get<{ incomplete_server_payments: Array<PaymentDTO> }>(
-      "/payments/incomplete_server_payments"
-    );
-    return response.data.incomplete_server_payments;
+    try {
+      const response = await this.api.get<{ incomplete_server_payments: Array<PaymentDTO> }>(
+        "/payments/incomplete_server_payments"
+      );
+      return response.data.incomplete_server_payments;
+    } catch (err) {
+      throw new PiPaymentError("unknown_error");
+    }
   };
 
   private validateApiKey = (apiKey: unknown) => {
-    if (!apiKey) throw new Error("Missing API key");
-    if (typeof apiKey !== "string") throw new Error("API key must be a string");
+    if (!apiKey) throw new PiPaymentError("missing_api_key");
+    if (typeof apiKey !== "string") throw new PiPaymentError("api_key_not_string");
   };
 
   private validateSeedFormat = (seed: unknown) => {
-    if (!seed) throw new Error("Missing wallet private seed");
-    if (typeof seed !== "string") throw new Error("Wallet private seed must be a string");
-    if (!seed.startsWith("S")) throw new Error("Wallet private seed must starts with 'S'");
-    if (seed.length !== 56) throw new Error("Wallet private seed must be 56-character long");
+    if (!seed) throw new PiPaymentError("missing_wallet_private_seed");
+    if (typeof seed !== "string") throw new PiPaymentError("wallet_private_seed_not_string");
+    if (!seed.startsWith("S")) throw new PiPaymentError("wallet_private_seed_not_starts_with_S");
+    if (seed.length !== 56) throw new PiPaymentError("wallet_private_seed_not_56_chars_long");
+    if (!StellarSdk.StrKey.isValidEd25519SecretSeed(seed)) throw new PiPaymentError("invalid_wallet_private_seed");
   };
 
   private validatePaymentData = (paymentData: unknown) => {
-    if (typeof paymentData !== "object" || paymentData === null) throw new Error("Payment data must be an object");
-    if (!("amount" in paymentData)) throw new Error("Missing amount");
-    if (typeof paymentData.amount !== "number") throw new Error("Amount must be a number");
-    if (!("memo" in paymentData)) throw new Error("Missing memo");
-    if (typeof paymentData.memo !== "string") throw new Error("Memo must be a string");
-    if (!("metadata" in paymentData)) throw new Error("Missing metadata");
+    if (typeof paymentData !== "object" || paymentData === null) throw new PiPaymentError("payment_data_not_object");
+    if (!("amount" in paymentData)) throw new PiPaymentError("missing_amount");
+    if (typeof paymentData.amount !== "number") throw new PiPaymentError("amount_not_number");
+    if (!("memo" in paymentData)) throw new PiPaymentError("missing_memo");
+    if (typeof paymentData.memo !== "string") throw new PiPaymentError("memo_not_string");
+    if (!("metadata" in paymentData)) throw new PiPaymentError("missing_metadata");
     if (typeof paymentData.metadata !== "object" || paymentData.metadata === null)
-      throw new Error("Metadata must be an object");
-    if (!("uid" in paymentData)) throw new Error("Missing uid");
-    if (typeof paymentData.uid !== "string") throw new Error("Uid must be a string");
+      throw new PiPaymentError("metadata_not_object");
+    if (!("uid" in paymentData)) throw new PiPaymentError("missing_uid");
+    if (typeof paymentData.uid !== "string") throw new PiPaymentError("uid_not_string");
   };
 
   private getHorizonClient = (network: NetworkPassphrase) => {
@@ -133,7 +208,7 @@ export default class PiNetwork {
     network: NetworkPassphrase
   ): Promise<StellarSdk.Transaction> => {
     if (transactionData.fromAddress !== this.myKeypair.publicKey()) {
-      throw new Error("You should use a private seed of your app wallet!");
+      throw new PiPaymentError("private_seed_mismatch");
     }
 
     const myAccount = await piHorizon.loadAccount(this.myKeypair.publicKey());
@@ -148,7 +223,7 @@ export default class PiNetwork {
     const transaction = new StellarSdk.TransactionBuilder(myAccount, {
       fee: baseFee.toString(),
       networkPassphrase: network,
-      timebounds: await piHorizon.fetchTimebounds(180),
+      timebounds: await piHorizon.fetchTimebounds(config.PI_BACKEND_HORIZON_DEFAULT_TIMEBOUNDS),
     })
       .addOperation(paymentOperation)
       .addMemo(StellarSdk.Memo.text(transactionData.paymentIdentifier))
@@ -157,13 +232,6 @@ export default class PiNetwork {
     transaction.sign(this.myKeypair);
     return transaction;
   };
-
-  private submitTransaction = async (
-    piHorizon: StellarSdk.Horizon.Server,
-    transaction: StellarSdk.Transaction
-  ): Promise<string> => {
-    const txResponse = await piHorizon.submitTransaction(transaction);
-    // @ts-expect-error StellarSdk.Horizon.HorizonApi.TransactionResponse.id is misstyped
-    return txResponse.id;
-  };
 }
+
+export { PiPaymentError };
