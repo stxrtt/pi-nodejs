@@ -164,7 +164,7 @@ export default class PiNetwork {
         "/payments/incomplete_server_payments"
       );
       return response.data.incomplete_server_payments;
-    } catch (err) {
+    } catch {
       throw new PiPaymentError("unknown_error");
     }
   };
