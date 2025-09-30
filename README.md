@@ -8,7 +8,7 @@ Install this package as a dependency of your app:
 
 ```shell
 # With npm:
-npm install --save pi-backend
+npm install pi-backend
 
 # With yarn:
 yarn add pi-backend

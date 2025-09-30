@@ -41,8 +41,8 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@stellar/stellar-sdk": "^13.2.0",
-    "axios": "^1.8.4",
+    "@stellar/stellar-sdk": "^14.2.0",
+    "axios": "^1.12.2",
     "dotenv": "^16.5.0"
   },
   "engines": {
