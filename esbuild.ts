@@ -4,7 +4,6 @@ import path from "path";
 
 const shared: esbuild.BuildOptions = {
   entryPoints: ["./src/index.ts"],
-  outfile: "dist/index.js",
   bundle: true,
   minify: process.env.PI_ENV === "production",
   treeShaking: true,
