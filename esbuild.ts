@@ -16,7 +16,7 @@ const shared: esbuild.BuildOptions = {
   legalComments: "linked" as const,
 };
 
-const cjs = { ...shared, format: "cjs", outfile: "dist/index.cjs" } satisfies esbuild.BuildOptions;
+const cjs = { ...shared, format: "cjs", outfile: "dist/index.cjs", footer: { js: "module.exports = module.exports.default || module.exports;" } } satisfies esbuild.BuildOptions;
 const esm = { ...shared, format: "esm", outfile: "dist/index.mjs" } satisfies esbuild.BuildOptions;
 
 async function build() {
