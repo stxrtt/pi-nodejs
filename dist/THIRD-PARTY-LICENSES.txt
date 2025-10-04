@@ -1,0 +1,90 @@
+Bundled license information:
+
+safe-buffer/index.js:
+  /*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
+
+@noble/hashes/utils.js:
+  /*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+
+@noble/curves/utils.js:
+  /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+
+@noble/curves/abstract/modular.js:
+  /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+
+@noble/curves/abstract/curve.js:
+  /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+
+@noble/curves/abstract/edwards.js:
+  /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+
+@noble/curves/abstract/montgomery.js:
+  /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+
+@noble/curves/ed25519.js:
+  /*! noble-curves - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+
+@stellar/stellar-base/lib/auth.js:
+  /*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */
+
+urijs/src/punycode.js:
+  /*! https://mths.be/punycode v1.4.0 by @mathias */
+
+urijs/src/IPv6.js:
+  /*!
+   * URI.js - Mutating URLs
+   * IPv6 Support
+   *
+   * Version: 1.19.11
+   *
+   * Author: Rodney Rehm
+   * Web: http://medialize.github.io/URI.js/
+   *
+   * Licensed under
+   *   MIT License http://www.opensource.org/licenses/mit-license
+   *
+   */
+
+urijs/src/SecondLevelDomains.js:
+  /*!
+   * URI.js - Mutating URLs
+   * Second Level Domain (SLD) Support
+   *
+   * Version: 1.19.11
+   *
+   * Author: Rodney Rehm
+   * Web: http://medialize.github.io/URI.js/
+   *
+   * Licensed under
+   *   MIT License http://www.opensource.org/licenses/mit-license
+   *
+   */
+
+urijs/src/URI.js:
+  /*!
+   * URI.js - Mutating URLs
+   *
+   * Version: 1.19.11
+   *
+   * Author: Rodney Rehm
+   * Web: http://medialize.github.io/URI.js/
+   *
+   * Licensed under
+   *   MIT License http://www.opensource.org/licenses/mit-license
+   *
+   */
+
+urijs/src/URITemplate.js:
+  /*!
+   * URI.js - Mutating URLs
+   * URI Template Support - http://tools.ietf.org/html/rfc6570
+   *
+   * Version: 1.19.11
+   *
+   * Author: Rodney Rehm
+   * Web: http://medialize.github.io/URI.js/
+   *
+   * Licensed under
+   *   MIT License http://www.opensource.org/licenses/mit-license
+   *
+   */
