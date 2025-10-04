@@ -1,5 +1,24 @@
 Bundled license information:
 
+mime-db/index.js:
+  /*!
+   * mime-db
+   * Copyright(c) 2014 Jonathan Ong
+   * Copyright(c) 2015-2022 Douglas Christopher Wilson
+   * MIT Licensed
+   */
+
+mime-types/index.js:
+  /*!
+   * mime-types
+   * Copyright(c) 2014 Jonathan Ong
+   * Copyright(c) 2015 Douglas Christopher Wilson
+   * MIT Licensed
+   */
+
+axios/dist/node/axios.cjs:
+  /*! Axios v1.12.2 Copyright (c) 2025 Matt Zabriskie and contributors */
+
 safe-buffer/index.js:
   /*! safe-buffer. MIT License. Feross Aboukhadijeh <https://feross.org/opensource> */
 
