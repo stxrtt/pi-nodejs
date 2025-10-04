@@ -1,6 +1,7 @@
 import esbuild from "esbuild";
 import fs from "fs";
 import path from "path";
+import { NodeModulesPolyfillPlugin } from '@esbuild-plugins/node-modules-polyfill'
 
 const buildOptions: esbuild.BuildOptions = {
   entryPoints: ["./src/index.ts"],
@@ -15,6 +16,7 @@ const buildOptions: esbuild.BuildOptions = {
     "process.env.PI_ENV": `"${process.env.PI_ENV || "development"}"`,
   },
   external: ["stellar-sdk", "dotenv"],
+  plugins: [NodeModulesPolyfillPlugin()],
   legalComments: "linked" as const,
 };
 
